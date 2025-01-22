@@ -42,7 +42,6 @@ Thumbs.db
 *.tsx
 *.js.map
 *.css.map
-public/
 
 # Server-side specific files (Node/Express)
 *.db
