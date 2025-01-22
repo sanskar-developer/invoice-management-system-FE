@@ -1,0 +1,82 @@
+# Node.js (Common for both client-side and server-side)
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# Build artifacts (client-side React build)
+build/
+dist/
+.cache/
+
+# Logs
+*.log
+*.log.*
+logs/
+log/
+
+# Dependency directories (some frameworks may use these)
+jspm_packages/
+bower_components/
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# IDE or Editor specific files
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Environment variables files
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# Client-side specific files (React)
+*.tsbuildinfo
+*.tsx
+*.js.map
+*.css.map
+public/
+
+# Server-side specific files (Node/Express)
+*.db
+*.sqlite3
+*.pid
+*.sock
+server/
+
+# Compiled files
+*.out
+*.class
+*.exe
+*.dll
+*.o
+
+# OS-specific files
+*.swp
+*.swo
+*.bak
+*.tmp
+
+# Test coverage directories (e.g., for Jest or Mocha)
+coverage/
+*.lcov
+
+# Frontend Framework caches (e.g., React, Vue)
+.cache/
+.prettier-cache/
+
+# Docker & container-specific files
+docker-compose.override.yml
+.docker/
+
+# MongoDB specific files (if local DB is used)
+db/
+*.pid
+*.log
