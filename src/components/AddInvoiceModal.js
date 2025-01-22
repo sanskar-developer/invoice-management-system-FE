@@ -1,108 +1,78 @@
-import React from "react";
-import {
-  Modal,
-  Box,
-  TextField,
-  Button,
-  Typography,
-  MenuItem,
-} from "@mui/material";
-import { Formik, Form, Field, FieldArray } from "formik";
-import * as Yup from "yup";
-import axios from "axios";
+import React from 'react';
+import { Modal, Box, TextField, Button, Typography, MenuItem, Grid, IconButton } from '@mui/material';
+import { Formik, Form, FieldArray } from 'formik';
+import * as Yup from 'yup';
+import DeleteIcon from '@mui/icons-material/Delete';
+import AddCircleIcon from '@mui/icons-material/AddCircle';
+import axios from 'axios';
 
-// Validation Schema
 const validationSchema = Yup.object({
-  invoiceNumber: Yup.string().required("Invoice Number is required"),
-  type: Yup.string()
-    .oneOf(["sale", "purchase", "expense"], "Invalid type selected")
-    .required("Type is required"),
-  customerName: Yup.string().when("type", {
-    is: "sale",
-    then: (schema) => schema.required("Customer Name is required"),
-    otherwise: (schema) => schema.notRequired(),
+  invoiceNumber: Yup.string().required('Invoice Number is required'),
+  date: Yup.date().required('Date is required'),
+  type: Yup.string().oneOf(['sale', 'purchase', 'expense'], 'Invalid type').required('Type is required'),
+  customerName: Yup.string().when('type', {
+    is: 'sale',
+    then: ()=>Yup.string().required('Customer Name is required'),
+    otherwise: ()=>Yup.string()
   }),
-  vendorName: Yup.string().when("type", {
-    is: "purchase",
-    then: (schema) => schema.required("Vendor Name is required"),
-    otherwise: (schema) => schema.notRequired(),
+  vendorName: Yup.string().when('type', {
+    is: (type) => type === 'purchase' || type === 'expense',
+    then: ()=>Yup.string().required('Vendor Name is required'),
+    otherwise: ()=>Yup.string()
   }),
-  date: Yup.date().required("Date is required"),
-  totalAmount: Yup.number().required("Total Amount is required"),
-  totalTax: Yup.number().required("Total Tax is required"),
-  subTotal: Yup.number().required("Subtotal is required"),
   items: Yup.array()
     .of(
       Yup.object({
-        itemName: Yup.string().required("Item Name is required"),
-        itemPrice: Yup.number()
-          .required("Item Price is required")
-          .typeError("Item Price must be a number"),
-        itemQty: Yup.number()
-          .required("Quantity is required")
-          .typeError("Quantity must be a number"),
-        itemTotal: Yup.number()
-          .required("Item Total is required")
-          .typeError("Item Total must be a number"),
-        itemCode: Yup.string().required("Item Code is required"),
+        itemName: Yup.string().required('Item Name is required'),
+        itemPrice: Yup.number().required('Item Price is required'),
+        itemQty: Yup.number().required('Quantity is required')
       })
     )
-    .min(1, "At least one item is required")
-    .required("Items are required"),
+    .min(1, 'At least one item is required')
+    .required(),
+  taxDetails: Yup.object({
+    cgst: Yup.number().required('CGST is required').min(0),
+    sgst: Yup.number().required('SGST is required').min(0),
+    igst: Yup.number().required('IGST is required').min(0)
+  })
 });
 
 const AddInvoiceModal = ({ open, onClose }) => {
-  const handleSubmit = async (values, { resetForm }) => {
-    // Calculate subtotal, total amount, and tax
-    const subTotal = values.items.reduce(
-      (sum, item) => sum + item.itemPrice * item.itemQty,
-      0
-    );
-    const totalTax = subTotal * 0.1; // Example: 10% tax
+  const handleSubmit = (values) => {
+    // Calculate subtotal and total tax
+    const subTotal = values.items.reduce((sum, item) => sum + item.itemPrice * item.itemQty, 0);
+    const totalTax = values.taxDetails.cgst + values.taxDetails.sgst + values.taxDetails.igst;
     const totalAmount = subTotal + totalTax;
 
-    // Calculate itemTotal for each item
-    const updatedItems = values.items.map((item) => ({
-      ...item,
-      itemTotal: item.itemPrice * item.itemQty,
-      itemCode: item.itemCode || `CODE-${Math.random().toString(36).substring(2, 8).toUpperCase()}`, // Generate item code if missing
-    }));
-
-    // Prepare the final payload
     const payload = {
       ...values,
-      date: values.date || new Date().toISOString(),
       subTotal,
       totalTax,
-      totalAmount,
-      items: updatedItems,
+      totalAmount
     };
 
-    try {
-      await axios.post(
-        `${process.env.REACT_APP_BACKEND_URL}/api/invoices`,
-        payload
-      );
-      alert("Invoice added successfully");
-      resetForm();
-      onClose();
-    } catch (error) {
-      console.error("Error adding invoice:", error);
-    }
+    axios
+      .post('/api/invoices', payload)
+      .then(() => {
+        onClose();
+        alert('Invoice added successfully');
+      })
+      .catch((error) => console.error('Error adding invoice:', error));
   };
 
   return (
     <Modal open={open} onClose={onClose}>
       <Box
         sx={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
           width: 600,
-          bgcolor: "background.paper",
+          bgcolor: 'background.paper',
           boxShadow: 24,
-          p: 4,
+          borderRadius: 2,
+          p: 4
         }}
       >
         <Typography variant="h6" gutterBottom>
@@ -111,189 +81,205 @@ const AddInvoiceModal = ({ open, onClose }) => {
 
         <Formik
           initialValues={{
-            invoiceNumber: "",
-            type: "",
-            customerName: "",
-            vendorName: "",
-            date: "",
-            totalAmount: 0,
-            totalTax: 0,
-            subTotal: 0,
-            items: [{ itemName: "", itemPrice: "", itemQty: "", itemTotal: 0, itemCode: "" }],
+            invoiceNumber: '',
+            date: '',
+            type: '',
+            customerName: '',
+            vendorName: '',
+            items: [{ itemName: '', itemPrice: '', itemQty: '' }],
+            taxDetails: { cgst: 0, sgst: 0, igst: 0 }
           }}
           validationSchema={validationSchema}
           onSubmit={handleSubmit}
         >
-          {({ values, errors, touched }) => (
+          {({ values, handleChange, errors, touched }) => (
             <Form>
-              {/* Invoice Number */}
-              <Field
-                as={TextField}
+              <TextField
                 name="invoiceNumber"
                 label="Invoice Number"
+                value={values.invoiceNumber}
+                onChange={handleChange}
+                error={touched.invoiceNumber && Boolean(errors.invoiceNumber)}
+                helperText={touched.invoiceNumber && errors.invoiceNumber}
                 fullWidth
                 margin="normal"
-                error={touched.invoiceNumber && !!errors.invoiceNumber}
-                helperText={touched.invoiceNumber && errors.invoiceNumber}
               />
-
-              {/* Type Dropdown */}
-              <Field
-                as={TextField}
+              <TextField
+                name="date"
+                label="Date"
+                type="date"
+                value={values.date}
+                onChange={handleChange}
+                error={touched.date && Boolean(errors.date)}
+                helperText={touched.date && errors.date}
+                fullWidth
+                margin="normal"
+                InputLabelProps={{ shrink: true }}
+              />
+              <TextField
                 name="type"
                 label="Type"
                 select
+                value={values.type}
+                onChange={handleChange}
+                error={touched.type && Boolean(errors.type)}
+                helperText={touched.type && errors.type}
                 fullWidth
                 margin="normal"
-                error={touched.type && !!errors.type}
-                helperText={touched.type && errors.type}
               >
                 <MenuItem value="sale">Sale</MenuItem>
                 <MenuItem value="purchase">Purchase</MenuItem>
                 <MenuItem value="expense">Expense</MenuItem>
-              </Field>
-
-              {/* Conditional Customer Name */}
-              {values.type === "sale" && (
-                <Field
-                  as={TextField}
+              </TextField>
+              {values.type === 'sale' && (
+                <TextField
                   name="customerName"
                   label="Customer Name"
+                  value={values.customerName}
+                  onChange={handleChange}
+                  error={touched.customerName && Boolean(errors.customerName)}
+                  helperText={touched.customerName && errors.customerName}
                   fullWidth
                   margin="normal"
-                  error={touched.customerName && !!errors.customerName}
-                  helperText={touched.customerName && errors.customerName}
                 />
               )}
-
-              {/* Conditional Vendor Name */}
-              {values.type === "purchase" && (
-                <Field
-                  as={TextField}
+              {(values.type === 'purchase' || values.type === 'expense') && (
+                <TextField
                   name="vendorName"
                   label="Vendor Name"
+                  value={values.vendorName}
+                  onChange={handleChange}
+                  error={touched.vendorName && Boolean(errors.vendorName)}
+                  helperText={touched.vendorName && errors.vendorName}
                   fullWidth
                   margin="normal"
-                  error={touched.vendorName && !!errors.vendorName}
-                  helperText={touched.vendorName && errors.vendorName}
                 />
               )}
 
-              {/* Date Field */}
-              <Field
-                as={TextField}
-                name="date"
-                label="Date"
-                type="date"
-                fullWidth
-                margin="normal"
-                InputLabelProps={{ shrink: true }}
-                error={touched.date && !!errors.date}
-                helperText={touched.date && errors.date}
-              />
-
-              {/* Items Section */}
               <Typography variant="subtitle1" gutterBottom>
                 Items
               </Typography>
-              <FieldArray name="items">
-                {({ remove, push }) => (
-                  <div>
+              <FieldArray
+                name="items"
+                render={(arrayHelpers) => (
+                  <>
                     {values.items.map((item, index) => (
-                      <Box
-                        key={index}
-                        sx={{
-                          display: "flex",
-                          gap: 2,
-                          marginBottom: 2,
-                        }}
-                      >
-                        <Field
-                          as={TextField}
-                          name={`items[${index}].itemName`}
-                          label="Item Name"
-                          fullWidth
-                          error={
-                            touched.items?.[index]?.itemName &&
-                            !!errors.items?.[index]?.itemName
-                          }
-                          helperText={
-                            touched.items?.[index]?.itemName &&
-                            errors.items?.[index]?.itemName
-                          }
-                        />
-                        <Field
-                          as={TextField}
-                          name={`items[${index}].itemPrice`}
-                          label="Price"
-                          fullWidth
-                          error={
-                            touched.items?.[index]?.itemPrice &&
-                            !!errors.items?.[index]?.itemPrice
-                          }
-                          helperText={
-                            touched.items?.[index]?.itemPrice &&
-                            errors.items?.[index]?.itemPrice
-                          }
-                        />
-                        <Field
-                          as={TextField}
-                          name={`items[${index}].itemQty`}
-                          label="Quantity"
-                          fullWidth
-                          error={
-                            touched.items?.[index]?.itemQty &&
-                            !!errors.items?.[index]?.itemQty
-                          }
-                          helperText={
-                            touched.items?.[index]?.itemQty &&
-                            errors.items?.[index]?.itemQty
-                          }
-                        />
-                        <Field
-                          as={TextField}
-                          name={`items[${index}].itemCode`}
-                          label="Item Code"
-                          fullWidth
-                          error={
-                            touched.items?.[index]?.itemCode &&
-                            !!errors.items?.[index]?.itemCode
-                          }
-                          helperText={
-                            touched.items?.[index]?.itemCode &&
-                            errors.items?.[index]?.itemCode
-                          }
-                        />
-                        <Button
-                          variant="contained"
-                          color="secondary"
-                          onClick={() => remove(index)}
-                        >
-                          Remove
-                        </Button>
-                      </Box>
+                      <Grid container spacing={2} key={index}>
+                        <Grid item xs={4}>
+                          <TextField
+                            name={`items[${index}].itemName`}
+                            label="Item Name"
+                            value={item.itemName}
+                            onChange={handleChange}
+                            error={
+                              touched.items?.[index]?.itemName &&
+                              Boolean(errors.items?.[index]?.itemName)
+                            }
+                            helperText={
+                              touched.items?.[index]?.itemName &&
+                              errors.items?.[index]?.itemName
+                            }
+                            fullWidth
+                          />
+                        </Grid>
+                        <Grid item xs={3}>
+                          <TextField
+                            name={`items[${index}].itemPrice`}
+                            label="Price"
+                            type="number"
+                            value={item.itemPrice}
+                            onChange={handleChange}
+                            error={
+                              touched.items?.[index]?.itemPrice &&
+                              Boolean(errors.items?.[index]?.itemPrice)
+                            }
+                            helperText={
+                              touched.items?.[index]?.itemPrice &&
+                              errors.items?.[index]?.itemPrice
+                            }
+                            fullWidth
+                          />
+                        </Grid>
+                        <Grid item xs={3}>
+                          <TextField
+                            name={`items[${index}].itemQty`}
+                            label="Qty"
+                            type="number"
+                            value={item.itemQty}
+                            onChange={handleChange}
+                            error={
+                              touched.items?.[index]?.itemQty &&
+                              Boolean(errors.items?.[index]?.itemQty)
+                            }
+                            helperText={
+                              touched.items?.[index]?.itemQty &&
+                              errors.items?.[index]?.itemQty
+                            }
+                            fullWidth
+                          />
+                        </Grid>
+                        <Grid item xs={2}>
+                          <IconButton onClick={() => arrayHelpers.remove(index)}>
+                            <DeleteIcon />
+                          </IconButton>
+                        </Grid>
+                      </Grid>
                     ))}
                     <Button
-                      type="button"
+                      startIcon={<AddCircleIcon />}
+                      onClick={() => arrayHelpers.push({ itemName: '', itemPrice: '', itemQty: '' })}
                       variant="outlined"
-                      onClick={() =>
-                        push({ itemName: "", itemPrice: "", itemQty: "", itemTotal: 0, itemCode: "" })
-                      }
+                      sx={{ mt: 2 }}
                     >
                       Add Item
                     </Button>
-                  </div>
+                  </>
                 )}
-              </FieldArray>
+              />
 
-              {/* Submit Button */}
-              <Button
-                type="submit"
-                variant="contained"
-                color="primary"
-                fullWidth
-                sx={{ marginTop: 2 }}
-              >
+              <Typography variant="subtitle1" gutterBottom sx={{ mt: 3 }}>
+                Tax Details
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={4}>
+                  <TextField
+                    name="taxDetails.cgst"
+                    label="CGST"
+                    type="number"
+                    value={values.taxDetails.cgst}
+                    onChange={handleChange}
+                    error={touched.taxDetails?.cgst && Boolean(errors.taxDetails?.cgst)}
+                    helperText={touched.taxDetails?.cgst && errors.taxDetails?.cgst}
+                    fullWidth
+                  />
+                </Grid>
+                <Grid item xs={4}>
+                  <TextField
+                    name="taxDetails.sgst"
+                    label="SGST"
+                    type="number"
+                    value={values.taxDetails.sgst}
+                    onChange={handleChange}
+                    error={touched.taxDetails?.sgst && Boolean(errors.taxDetails?.sgst)}
+                    helperText={touched.taxDetails?.sgst && errors.taxDetails?.sgst}
+                    fullWidth
+                  />
+                </Grid>
+                <Grid item xs={4}>
+                  <TextField
+                    name="taxDetails.igst"
+                    label="IGST"
+                    type="number"
+                    value={values.taxDetails.igst}
+                    onChange={handleChange}
+                    error={touched.taxDetails?.igst && Boolean(errors.taxDetails?.igst)}
+                    helperText={touched.taxDetails?.igst && errors.taxDetails?.igst}
+                    fullWidth
+                  />
+                </Grid>
+              </Grid>
+
+              <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 3 }}>
                 Submit
               </Button>
             </Form>
